@@ -13,7 +13,7 @@ import pypdfium2 as pdfium
 import pytesseract
 from PIL import Image
 import numpy as np
-import time
+import pandas as pd
 
 ### Create a list of document names embedded in their location
 docpath = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\cortland_jof"
@@ -55,69 +55,126 @@ for d in docs_list_text:
 address = []
 for d in range(len(docs_clean)):
     try:
-        address.append(re.search(r'(?<=PROPERTY:).+\d.+\d{5}', docs_clean[d]).group())
+        re.search(r'(?<=(PROPERTY: |PREMISES: )).+\d.+\d{5}', docs_clean[d]).group()
     except:
-        None
+        address.append(None)
+    else:
+        address.append(re.search(r'(?<=(PROPERTY: |PREMISES: )).+\d.+\d{5}', docs_clean[d]).group())
         
-for a in range(len(address)):
+for i in range(len(address)): # make this not greedy
     try:
-        address[a] = re.search(r'\d.+\d{5}', address[a]).group()
+        re.search(r'\d.+\d{5}', address[i]).group()
     except:
-        None
+        address[i] = None
+    else:
+        address[i] = re.search(r'\d.+[0-9]{5}?', address[i]).group()
     
 ## Extract lien
 lien = []
 for d in range(len(docs_clean)):
     try:
-        lien.append(re.search('(?<=FOURTH: ).+[0-9,.]+', docs_clean[d]).group())
+        re.search('(?<=Report: ).+[0-9,.]+', docs_clean[d]).group()
     except:
-        None
+        lien.append(None)
+    else:
+        lien.append(re.search('(?<=Report: ).+[0-9,.]+', docs_clean[d]).group())
         
-for l in range(len(lien)):
+for i in range(len(lien)):
     try:
-        lien[l] = re.search(r'[0-9,\\.]+', lien[l]).group()
+        re.search(r'[0-9,\\.]+', lien[i]).group()
     except:
-        None
+        lien[i] = None
+    else:
+        lien[i] = re.search(r'[0-9,\\.]+', lien[i]).group()
+        
         
 ## Extract costs and disbursements
 costs = []
 for d in range(len(docs_clean)):
     try:
+        re.search(r'(?<=Costs and Disbursements: ).+[0-9,\\.]+', docs_clean[d]).group()
+    except:
+        costs.append(None)
+    else:
         costs.append(re.search(r'(?<=Costs and Disbursements: ).+[0-9,\\.]+', docs_clean[d]).group())
-    except:
-        None
         
-for c in range(len(costs)):
+for i in range(len(costs)):
     try:
-        costs[c] = re.search(r'[0-9,\\.]+', costs[c]).group()
+        re.search(r'[0-9,\\.]+', costs[i]).group()
     except:
-        None
+        costs[i] = None
+    else:
+        costs[i] = re.search(r'[0-9,\\.]+', costs[i]).group()
         
 ## Extract Additional Allowance
 allowance = []
 for d in range(len(docs_clean)):
     try:
+        re.search(r'(?<=Allowance: ).+[0-9,\\.]+', docs_clean[d]).group()
+    except:
+        allowance.append(None)
+    else:
         allowance.append(re.search(r'(?<=Allowance: ).+[0-9,\\.]+', docs_clean[d]).group())
-    except:
-        None
         
-for a in range(len(allowance)):
+for i in range(len(allowance)):
     try:
-        allowance[a] = re.search(r'[0-9,\\.]+', allowance[a]).group()
+        re.search(r'[0-9,\\.]+', allowance[i]).group()
     except:
-        None
+        allowance[i] = None
+    else:
+        allowance[i] = re.search(r'[0-9,\\.]+', allowance[i]).group()
         
 ## Extract Attorney Fees:
 fees = []
 for d in range(len(docs_clean)):
     try:
-        fees.append(re.search(r'(?<=Fees: ).+[0-9,\\.]+', docs_clean[d]).group())
+        re.search(r'(?<=Fees: ).+[0-9,\\.]+', docs_clean[d]).group()
     except:
-        None
+        fees.append(None)
+    else:
+        fees.append(re.search(r'(?<=Fees: ).+[0-9,\\.]+', docs_clean[d]).group())
         
 for i in range(len(fees)):
     try:
-        fees[i] = re.search(r'[0-9,\\.]+', fees[i]).group()
+        re.search(r'[0-9,\\.]+', fees[i]).group()
     except:
-        None
+        fees[i] = None
+    else:
+        fees[i] = re.search(r'[0-9,\\.]+', fees[i]).group()
+        
+# Now check to see which documents loaded correctly
+# Number documents by each new address entry
+
+address_count = []
+for i in range(len(address)):
+    if address[i] is None:
+        address_count.append(0)
+    else:
+        address_count.append(1)
+        
+total = 0
+address_iter = []
+for i in address_count:
+    total += i
+    address_iter.append(total)
+    
+# Create a DataFrame
+d_surplus = pd.DataFrame({'address_id': address_iter,
+                          'address': address,
+                          'lien': lien,
+                          'costs': costs,
+                          'allowance': allowance,
+                          'fees': fees})
+
+# Aggregate all items into a single column
+d_surplus['complete'] = d_surplus.iloc[:, 1:6].bfill(axis=1).iloc[:, 0]
+
+# Count items per address (there should be 5 including the address itself)
+d_surplus['item_count'] = d_surplus['complete'].isnull().astype(int)
+
+d_surplus['item_count'] = d_surplus['item_count'].map(lambda x: 1 if x == 0 else 0)
+
+# number of elements by address ID
+d_surplus['item_count'].groupby(d_surplus['address_id']).sum()
+
     
