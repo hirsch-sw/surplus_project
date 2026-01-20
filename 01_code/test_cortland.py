@@ -55,19 +55,19 @@ for d in docs_list_text:
 address = []
 for d in range(len(docs_clean)):
     try:
-        re.search(r'(?<=(PROPERTY: |PREMISES: )).+\d.+\d{5}', docs_clean[d]).group()
+        re.search(r'(?<=(PROPERTY: |PREMISES: |Address: )).+\d.+\d{5}', docs_clean[d]).group()
     except:
         address.append(None)
     else:
-        address.append(re.search(r'(?<=(PROPERTY: |PREMISES: )).+\d.+\d{5}', docs_clean[d]).group())
+        address.append(re.search(r'(?<=(PROPERTY: |PREMISES: |Address: )).+\d.+\d{5}', docs_clean[d]).group())
         
-for i in range(len(address)): # make this not greedy
+for i in range(len(address)):
     try:
-        re.search(r'\d.+\d{5}', address[i]).group()
+        re.search(r'(\d+\D+\d{5})+?', address[i]).group()
     except:
         address[i] = None
     else:
-        address[i] = re.search(r'\d.+[0-9]{5}?', address[i]).group()
+        address[i] = re.search(r'(\d+\D+\d{5})+?', address[i]).group()
     
 ## Extract lien
 lien = []
@@ -142,6 +142,17 @@ for i in range(len(fees)):
     else:
         fees[i] = re.search(r'[0-9,\\.]+', fees[i]).group()
         
+# Extract document termination flag
+beg = []
+for d in range(len(docs_clean)):
+    try:
+        re.search(r'P\s*R\s*E\s*S\s*E\s*N\s*T\s*|County of CORTLAND|Image: 1 ', docs_clean[d]).group()
+    except:
+        beg.append(None)
+    else:
+        beg.append("beginning")
+
+        
 # Now check to see which documents loaded correctly
 # Number documents by each new address entry
 
@@ -157,6 +168,23 @@ address_iter = []
 for i in address_count:
     total += i
     address_iter.append(total)
+    
+beg_count = []
+for i in range(len(beg)):
+    if beg[i] is None:
+        beg_count.append(0)
+    else:
+        beg_count.append(1)
+        
+total_beg = 0
+beg_iter = []
+for i in beg_count:
+    total_beg += i
+    beg_iter.append(total_beg)
+    
+all_beg = address_count + beg_count
+
+all_beg = all_beg.map(lambda x: 1 if x > 0 else 0)
     
 # Create a DataFrame
 d_surplus = pd.DataFrame({'address_id': address_iter,
@@ -175,6 +203,32 @@ d_surplus['item_count'] = d_surplus['complete'].isnull().astype(int)
 d_surplus['item_count'] = d_surplus['item_count'].map(lambda x: 1 if x == 0 else 0)
 
 # number of elements by address ID
-d_surplus['item_count'].groupby(d_surplus['address_id']).sum()
+d_surplus['total'] = d_surplus['item_count'].groupby(d_surplus['address_id']).transform('sum')
 
+# Now we know that if total < 5, we're missing an element;
+# If total > 5, we're missing an address (because they're grouped by address)
+# Note: index must be formatted as a list literal and columns cannot be listed in order to return a series
+d_surplus.loc[d_surplus['total'] > 5, 'address_id'].unique()
+
+## There's gotta be way more than just two addresses that got conflated, but we'll deal with that later
+## Make a table?? of unique values by index
+add_dict = d_surplus['complete'].groupby(d_surplus['address_id']).unique().to_dict()
+
+for d in add_dict:
+    print(len(add_dict[d][0]))
     
+# First missing after index 2 array 1 (156,166.78). Missing address 1351 Hauck Hill Road
+# handwriting in prior sheets. $44,183.73 is completely correct, but from next document.
+# Again, missing all numbers from handwriting
+
+docs_clean[14] # doesn't even show up
+
+# Appears at the end of the document as "Said property is commonly known as..."
+# add a truncating string from the last page
+
+docs_clean[27]
+## "Auction locations and contact list"
+
+## Got the next one (richmond hill road)   
+## Missing after hamlin st 
+docs_clean[53]
