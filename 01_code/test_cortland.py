@@ -14,6 +14,10 @@ import pytesseract
 from PIL import Image
 import numpy as np
 import pandas as pd
+from paddleocr import PPStructureV3
+from datetime import datetime
+
+pd.set_option('display.max_columns', None)
 
 ### Create a list of document names embedded in their location
 docpath = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\cortland_jof"
@@ -37,29 +41,63 @@ docs_list = [item for sublist in docs_pdf for item in sublist]
 
 ### Give a path to the location of Tesseract
 ### It's probably here unless you did something weird
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract'
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract'
 
-### Transform each page into an image and run OCR on each image to get each page
-### as a text string
-docs_list_text = []
+# ### Transform each page into an image and run OCR on each image to get each page
+# ### as a text string
+docs_list_img = []
 for d in range(len(docs_list)):
     bitmap = docs_list[d].render(scale=1, rotation=0)
     pil_image = bitmap.to_pil()
-    docs_list_text.append(pytesseract.image_to_string(pil_image))
+    docs_list_img.append(pil_image)
+
+## Try PaddleOCR
+ocr = PPStructureV3(text_recognition_model_name="en_PP-OCRv4_mobile_rec")
+docs_list_text = [ocr.predict(full_path[i]) for i in range(len(full_path))]    
+
+markdown_list = []
+markdown_images = []
+
+for d in range(len(docs_list_text)):
+    for i in range(len(docs_list_text[d])):
+        md_info = docs_list_text[d][i].markdown
+        markdown_list.append(md_info)
+        markdown_images.append(md_info.get('markdown_images', {}))
     
+# markdown_texts = ocr.concatenate_markdown_pages(markdown_list)
+
 docs_clean = []
-for d in docs_list_text:
-    docs_clean.append(d.replace('\n', ' '))
+for d in range(len(markdown_list)):
+    doc = markdown_list[d]['markdown_texts']
+    clean_doc = doc.replace('\n', ' ')
+    docs_clean.append(clean_doc)
+
+# Write to txt
+clean_folder = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\cortland_jof_txt\cortland_jof"
+clean_paths = [clean_folder + str(i) + '.txt' for i in range(len(docs_clean))]
+
+for d in range(len(docs_clean)):
+    with open(clean_paths[d], 'w') as file:
+        file.write(docs_clean[d])
+        
+# Write to png
+clean_folder = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\cortland_jof_png\cortland_jof"
+clean_paths = [clean_folder + str(i) + '.png' for i in range(len(docs_list_img))]
+
+for d in range(len(docs_list_img)):
+    docs_list_img[d].save(clean_paths[d])
+
+
     
 ### Extract address
 address = []
 for d in range(len(docs_clean)):
     try:
-        re.search(r'(?<=(PROPERTY: |PREMISES: |Address: )).+\d.+\d{5}', docs_clean[d]).group()
+        re.search(r'(PROPERTY|PREMISES|Foreclosure of:|Property:|Premises:|Property address:).+\d.+\d{5}', docs_clean[d]).group()
     except:
         address.append(None)
     else:
-        address.append(re.search(r'(?<=(PROPERTY: |PREMISES: |Address: )).+\d.+\d{5}', docs_clean[d]).group())
+        address.append(re.search(r'(PROPERTY|PREMISES|Foreclosure of:|Property:|Premises:|Property address:).+\d.+\d{5}', docs_clean[d]).group())
         
 for i in range(len(address)):
     try:
@@ -146,7 +184,8 @@ for i in range(len(fees)):
 beg = []
 for d in range(len(docs_clean)):
     try:
-        re.search(r'P\s*R\s*E\s*S\s*E\s*N\s*T\s*|County of CORTLAND|Image: 1 ', docs_clean[d]).group()
+        re.search(r'P\s*R\s*E\s*S\s*E\s*N\s*T\s*|Image: 1 |PROPERTY|PREMISES|Foreclosure of:|Property:|Premises:|Property address:', 
+                  docs_clean[d]).group()
     except:
         beg.append(None)
     else:
@@ -182,53 +221,132 @@ for i in beg_count:
     total_beg += i
     beg_iter.append(total_beg)
     
-all_beg = address_count + beg_count
+all_beg = [a + b for a,b in zip(address_count, beg_count)]
 
-all_beg = all_beg.map(lambda x: 1 if x > 0 else 0)
+all_beg = [1 if tally > 0 else 0 for tally in all_beg]
+
+total_all = 0
+all_iter = []
+for i in all_beg:
+    total_all += i
+    all_iter.append(total_all)
+    
+address_index = [i for i, x in enumerate(address) if x is not None]
+beg_index = [i for i, x in enumerate(beg) if x is not None]
+
+missings = [b for b in beg_index if b not in address_index]
+add_missings = [a for a in address_index if a not in beg_index]
+# missings (without adding Foreclosure of:, Premises:, Property:, and Property address: to regex string)
+# Out[144]: 
+# [95, "Foreclosure of:"
+#  180, no address (followed by a list of properties)
+# markdown_images[183]['imgs/img_in_table_box_90_24_1181_1483.jpg'].show() also saved
+# markdown_images[184]['imgs/img_in_table_box_102_56_1167_703.jpg'].show() also saved
+#  185, Mortgaged Premises:
+#  276, Mortgaged Premises:
+#  301, Mortgaged Property:
+#  315, Property address:
+#  348, Schedule A (address appears elsewhere)
+#  413, no address - OCR error
+#  428, Mortgaged Premises:
+#  573, Mortgaged Premises:
+#  586, MORTGAGED PROPERTY:0 -- no zip code, so no pattern
+#  674, Mortgaged Premises:
+#  800, Mortgaged Premises:
+#  971, amendment (OK)
+#  979, Mortgaged Premises:
+#  1018] Mortgaged Premises:
+
+# After correction of address regex string
+# missings
+# Out[193]: [180 ^, 348 ^, 413 ^, 586 ^, 971 ^]
     
 # Create a DataFrame
-d_surplus = pd.DataFrame({'address_id': address_iter,
+d_surplus = pd.DataFrame({'id': beg_iter,
                           'address': address,
                           'lien': lien,
                           'costs': costs,
                           'allowance': allowance,
                           'fees': fees})
 
-# Aggregate all items into a single column
-d_surplus['complete'] = d_surplus.iloc[:, 1:6].bfill(axis=1).iloc[:, 0]
+# Create a dictionary of values per property
+l_keys = list(d_surplus.columns)
+dict_jof = dict.fromkeys(l_keys)
 
-# Count items per address (there should be 5 including the address itself)
-d_surplus['item_count'] = d_surplus['complete'].isnull().astype(int)
+id_col = []
+address_col = []
 
-d_surplus['item_count'] = d_surplus['item_count'].map(lambda x: 1 if x == 0 else 0)
+for i in range(1, total_beg+1):
+    id_col.append(i)
+    '''addresses'''
+    try:
+        d_surplus.loc[(d_surplus['id']==i) & (d_surplus['address'].notnull()), 'address'].to_list()[0]
+    except: 
+        address_col.append(None)
+    else:
+        address_col.append(d_surplus.loc[(d_surplus['id']==i) & (d_surplus['address'].notnull()), 'address'].to_list()[0])
 
-# number of elements by address ID
-d_surplus['total'] = d_surplus['item_count'].groupby(d_surplus['address_id']).transform('sum')
+lien_col = []
+for i in range(1, total_beg+1):
+    try:
+        d_surplus.loc[(d_surplus['id']==i) & (d_surplus['lien'].notnull()), 'lien'].to_list()[0]
+    except:
+        lien_col.append(None)
+    else:
+        lien_col.append(d_surplus.loc[(d_surplus['id']==i) & (d_surplus['lien'].notnull()), 'lien'].to_list()[0])
 
-# Now we know that if total < 5, we're missing an element;
-# If total > 5, we're missing an address (because they're grouped by address)
-# Note: index must be formatted as a list literal and columns cannot be listed in order to return a series
-d_surplus.loc[d_surplus['total'] > 5, 'address_id'].unique()
+costs_col = []
+for i in range(1, total_beg+1):                        
+    try:
+        d_surplus.loc[(d_surplus['id']==i) & (d_surplus['costs'].notnull()), 'costs'].to_list()[0]
+    except:
+        costs_col.append(None)
+    else:
+        costs_col.append(d_surplus.loc[(d_surplus['id']==i) & (d_surplus['costs'].notnull()), 'costs'].to_list()[0])
+        
+        
+allowance_col = []
+for i in range(1, total_beg+1):
+    try:
+        d_surplus.loc[(d_surplus['id']==i) & (d_surplus['allowance'].notnull()), 'allowance'].to_list()[0]
+    except:
+        allowance_col.append(None)
+    else:
+        allowance_col.append(d_surplus.loc[(d_surplus['id']==i) & (d_surplus['allowance'].notnull()), 'allowance'].to_list()[0])
 
-## There's gotta be way more than just two addresses that got conflated, but we'll deal with that later
-## Make a table?? of unique values by index
-add_dict = d_surplus['complete'].groupby(d_surplus['address_id']).unique().to_dict()
+fees_col = []
+for i in range(1, total_beg+1):                             
+    try:
+        d_surplus.loc[(d_surplus['id']==i) & (d_surplus['fees'].notnull()), 'fees'].to_list()[0]
+    except:
+        fees_col.append(None)
+    else:
+        fees_col.append(d_surplus.loc[(d_surplus['id']==i) & (d_surplus['fees'].notnull()), 'fees'].to_list()[0])
+                        
+                        
+                       
+                        
+d_jof = pd.DataFrame({'id': id_col,
+                          'address': address_col,
+                          'lien': lien_col,
+                          'costs': costs_col,
+                          'allowance': allowance_col,
+                          'fees': fees_col})
 
-for d in add_dict:
-    print(len(add_dict[d][0]))
+# Clean
+for i in range(2,6):
+    d_jof.iloc[:,i] = d_jof.iloc[:,i].astype(str).str.replace(r'\.{2}', '', regex = True)
+    d_jof.iloc[:,i] = d_jof.iloc[:,i].astype(str).str.replace(r'\.(?=\d{3})', '', regex = True)
+    d_jof.iloc[:,i] = d_jof.iloc[:,i].astype(str).str.replace(r'\.$', '', regex = True)
+    d_jof.iloc[:,i] = d_jof.iloc[:,i].astype(str).str.replace(r'^\s*$', 'None', regex = True)
+    d_jof.iloc[:,i] = d_jof.iloc[:,i].astype(str).str.replace(r',', '', regex = True)
     
-# First missing after index 2 array 1 (156,166.78). Missing address 1351 Hauck Hill Road
-# handwriting in prior sheets. $44,183.73 is completely correct, but from next document.
-# Again, missing all numbers from handwriting
+d_jof = d_jof.fillna(value=np.nan)
+d_jof = d_jof.replace({'None': np.nan})
+for i in range(2,6):
+    d_jof.iloc[:,i] = d_jof.iloc[:,i].astype(float)
 
-docs_clean[14] # doesn't even show up
 
-# Appears at the end of the document as "Said property is commonly known as..."
-# add a truncating string from the last page
-
-docs_clean[27]
-## "Auction locations and contact list"
-
-## Got the next one (richmond hill road)   
-## Missing after hamlin st 
-docs_clean[53]
+# Write to disk
+folder = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\cortland_foreclosures\cortland_foreclosures_"
+d_jof.to_csv(folder + str(datetime.now().date()) + '.csv')
