@@ -191,6 +191,24 @@ for d in range(len(docs_clean)):
     else:
         beg.append("beginning")
 
+# Extract dates
+dates = []
+for d in range(len(docs_clean)):
+    try:
+        re.search(r'(?<=EF\d{2}-\d{3})\d{2}/\d{2}/202\d', docs_clean[d], regex = True).group()
+    except:
+        dates.append(None)
+    else:
+        dates.append(re.search(r'(?<=EF\d{2}-\d{3})\d{2}/\d{2}/202\d', docs_clean[d], regex = True).group())
+        
+for i in range(len(fees)):
+    try:
+        re.search(r'[0-9,\\.]+', fees[i]).group()
+    except:
+        dates[i] = None
+    else:
+        dates[i] = re.search(r'[0-9,\\.]+', fees[i]).group()
+
         
 # Now check to see which documents loaded correctly
 # Number documents by each new address entry
@@ -256,6 +274,10 @@ add_missings = [a for a in address_index if a not in beg_index]
 #  971, amendment (OK)
 #  979, Mortgaged Premises:
 #  1018] Mortgaged Premises:
+    
+# picked up wrong address at index 211
+# has problems with state route addresses
+# missed 413-422 entirely
 
 # After correction of address regex string
 # missings
