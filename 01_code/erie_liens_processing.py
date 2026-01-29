@@ -57,9 +57,9 @@ for d in range(len(docs_list)):
 markdown_list = []
 markdown_images = []
 
-for d in range(len(docs_list_text)):
-    for i in range(len(docs_list_text[d])):
-        md_info = docs_list_text[d][i].markdown
+for d in range(len(docs_list_text_erie)):
+    for i in range(len(docs_list_text_erie[d])):
+        md_info = docs_list_text_erie[d][i].markdown
         markdown_list.append(md_info)
         markdown_images.append(md_info.get('markdown_images', {}))
     
@@ -68,20 +68,48 @@ for d in range(len(docs_list_text)):
 docs_clean = []
 for d in range(len(markdown_list)):
     doc = markdown_list[d]['markdown_texts']
-    clean_doc = doc.replace('\n', ' ')
+    clean_doc = doc.replace(r'\n', ' ')
+    clean_doc = re.sub(r'\</?t[dr]+\>', ' ', clean_doc)
+    clean_doc = re.sub(r'\s+', ' ', clean_doc)
     docs_clean.append(clean_doc)
 
 # Write to txt
-clean_folder = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\cortland_jof_txt\cortland_jof"
+clean_folder = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\other_liens\erie_liens-redemptions_txt\erie_liens-redemptions"
 clean_paths = [clean_folder + str(i) + '.txt' for i in range(len(docs_clean))]
 
 for d in range(len(docs_clean)):
-    with open(clean_paths[d], 'w') as file:
+    with open(clean_paths[d], 'w', encoding='utf-8') as file:
         file.write(docs_clean[d])
         
 # Write to png
-clean_folder = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\cortland_jof_png\cortland_jof"
+clean_folder = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\other_liens\erie_liens-redemptions_png\erie_liens-redemptions"
 clean_paths = [clean_folder + str(i) + '.png' for i in range(len(docs_list_img))]
 
 for d in range(len(docs_list_img)):
     docs_list_img[d].save(clean_paths[d])
+    
+# Pull SBLs
+l_sbl_redem = []
+
+for d in docs_clean[0:61]:
+    l_sbl_redem.append(re.findall(r'\d{16}\w?', d))
+    
+l_sbl_redem_list = [item for sublist in l_sbl_redem for item in sublist]
+
+l_sbl_liens = []
+for d in docs_clean[62:755]:
+    l_sbl_liens.append(re.findall(r'\d{16}\w?', d))
+
+l_sbl_liens_list = [item for sublist in l_sbl_liens for item in sublist]
+for i in range(len(l_sbl_liens_list)):
+ l_sbl_liens_list[i] = re.sub(r'D', '', l_sbl_liens_list[i])
+
+l_foreclosures = [i for i in l_sbl_liens_list if i not in l_sbl_redem_list]
+
+pages= []          
+for k in range(len(docs_clean)):
+    for j in range(len(l_foreclosures)):
+        if bool(re.search(pattern=l_foreclosures[j], string=docs_clean[k])) == True:
+            pages.append(k)
+    
+i,x = enumerate(docs_clean[80])
