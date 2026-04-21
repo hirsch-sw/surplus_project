@@ -16,9 +16,9 @@ import pandas as pd
     # adding spaces
     # adding "route" when it had been erased
     # removing some extraneous info
-d_jof = pd.read_csv(r'C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\cortland_foreclosures\cortland_foreclosures_2026-01-21_REV.csv')
+d_jof = pd.read_csv(r'/path/to/foreclosures')
 
-path_sales = r'C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\cortland_sales'
+path_sales = r'/path/to/sales'
 allsales = os.listdir(path_sales)
 full_sales = []
 for a in allsales:

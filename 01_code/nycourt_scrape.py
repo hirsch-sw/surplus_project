@@ -20,7 +20,7 @@ import time
 url = 'https://www.nycourts.gov/legacyPDFs/courts/2jd/kings/civil/foreclosures/foreclosure%20scans/'
 
     
-with open(r"C:\Windows\System32\foreclosure%20scans.html", "r", encoding="utf-8") as file:
+with open(r"path/to/foreclosurescans", "r", encoding="utf-8") as file:
     html_content = file.read()
 
 soup = BeautifulSoup(html_content, 'html.parser')

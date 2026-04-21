@@ -18,7 +18,7 @@ from datetime import datetime
 pd.set_option('display.max_columns', None)
 
 ### Create a list of document names embedded in their location
-docpath = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\other_liens\erie_liens-redemptions"
+docpath = r"/path/to/redemptions"
 alldocs = os.listdir(docpath)
 full_path = []
 for a in alldocs:
@@ -74,7 +74,7 @@ for d in range(len(markdown_list)):
     docs_clean.append(clean_doc)
 
 # Write to txt
-clean_folder = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\other_liens\erie_liens-redemptions_txt\erie_liens-redemptions"
+clean_folder = r"/path/to/txt/"
 clean_paths = [clean_folder + str(i) + '.txt' for i in range(len(docs_clean))]
 
 for d in range(len(docs_clean)):
@@ -82,7 +82,7 @@ for d in range(len(docs_clean)):
         file.write(docs_clean[d])
         
 # Write to png
-clean_folder = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\other_liens\erie_liens-redemptions_png\erie_liens-redemptions"
+clean_folder = r"path/to/png/"
 clean_paths = [clean_folder + str(i) + '.png' for i in range(len(docs_list_img))]
 
 for d in range(len(docs_list_img)):
@@ -113,3 +113,5 @@ for k in range(len(docs_clean)):
             pages.append(k)
     
 i,x = enumerate(docs_clean[80])
+
+## unfinished

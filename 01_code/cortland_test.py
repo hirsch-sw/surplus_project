@@ -20,7 +20,7 @@ from datetime import datetime
 pd.set_option('display.max_columns', None)
 
 ### Create a list of document names embedded in their location
-docpath = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\cortland_jof"
+docpath = r"path/to/jof"
 alldocs = os.listdir(docpath)
 full_path = []
 for a in alldocs:
@@ -73,7 +73,7 @@ for d in range(len(markdown_list)):
     docs_clean.append(clean_doc)
 
 # Write to txt
-clean_folder = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\cortland_jof_txt\cortland_jof"
+clean_folder = r"/path/to/cleanjoftxt/"
 clean_paths = [clean_folder + str(i) + '.txt' for i in range(len(docs_clean))]
 
 for d in range(len(docs_clean)):
@@ -81,7 +81,7 @@ for d in range(len(docs_clean)):
         file.write(docs_clean[d])
         
 # Write to png
-clean_folder = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\cortland_jof_png\cortland_jof"
+clean_folder = r"/path/to/cleanjofpng/"
 clean_paths = [clean_folder + str(i) + '.png' for i in range(len(docs_list_img))]
 
 for d in range(len(docs_list_img)):
@@ -370,5 +370,5 @@ for i in range(2,6):
 
 
 # Write to disk
-folder = r"C:\Users\hirsc\Documents\Raven3\surplus_project\00_data\cortland_foreclosures\cortland_foreclosures_"
+folder = r"/path/to/finaldocs/"
 d_jof.to_csv(folder + str(datetime.now().date()) + '.csv')
